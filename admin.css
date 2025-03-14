@@ -96,7 +96,12 @@ body {
     gap: 8px;
 }
 .form-group {
-    margin-bottom: 20px;
+    display: none; /* Hidden by default */
+    background: var(--white);
+    border-radius: 10px;
+    box-shadow: 0 4px 24px 0 rgba(34,41,47,.1);
+    padding: 1.5rem;
+    margin-top: 2rem;
     
 
 
