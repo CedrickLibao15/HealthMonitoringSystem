@@ -95,6 +95,21 @@ body {
     align-items: center;
     gap: 8px;
 }
+.form-group {
+    margin-bottom: 20px;
+    
+
+
+}
+
+.form-control {
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    margin-top: 8px;
+    width: 100%;
+}
 
 .btn-export:hover {
     transform: translateY(-2px);

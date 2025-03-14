@@ -1,4 +1,7 @@
 <?php
+//set date time zone manila 
+date_default_timezone_set('Asia/Manila');
+// Start the session
 session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -148,7 +151,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt = $conn->prepare("INSERT INTO health_records (
             employee_name, unit, wellness_status, symptoms, symptoms_management,
             household_symptoms, household_symptoms_details, environmental_check,
-            environmental_issues, mental_health_check, mental_health_support, current_status, heath_index_status
+            environmental_issues, mental_health_check, mental_health_support, current_status, heat_index_status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         $stmt->bind_param("sssssssssssss",
@@ -164,7 +167,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_POST['mentalHealthCheck'],
         $mental_support,
         $_POST['statusLocation'],
-        $_POST['HeatIndexCheck'] // Add this line
+        $_POST['HeatIndexCheck']
         );
 
         if ($stmt->execute()) {
@@ -260,7 +263,6 @@ if ($employee_stmt = $conn->prepare($employee_sql)) {
 <!-- Basic Information -->
     <h3>Basic Information</h3>
     <form method="post" action="" novalidate>
-
     <div class="form-group">
         <label for="employeeName">Employee Name <span style="color: red;">*</span></label>
         <select class="form-control" id="employeeName" name="employeeName" required>

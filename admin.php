@@ -1,5 +1,9 @@
 <?php
+
+date_default_timezone_set('Asia/Manila');
+
 session_start();
+
 if (!isset($_SESSION['admin_logged_in'])) {  // Matches the session variable name
     header("Location: login.php");
     exit;
@@ -18,34 +22,41 @@ if ($conn->connect_error) {
 
 // Fetch employee names
 $employee_options = '';
-$employee_sql = "SELECT CONCAT(firstName, ' ', lastName) AS full_name FROM employee_db";
+$employee_sql = "SELECT CONCAT(firstName, ' ', lastName) AS full_name, employee_id FROM employee_db";
 if ($employee_stmt = $conn->prepare($employee_sql)) {
     $employee_stmt->execute();
     $result = $employee_stmt->get_result();
+    
     while ($row = $result->fetch_assoc()) {
-        $employee_options .= "<option value='".htmlspecialchars($row['full_name'])."'>".htmlspecialchars($row['full_name'])."</option>";
+        $employee_options .= "<option data-value-id='".htmlspecialchars($row['employee_id'])."' value='".htmlspecialchars($row['full_name'])."'>".htmlspecialchars($row['full_name'])."</option>";
     }
     $employee_stmt->close();
 } else {
     die("<script>alert('Error fetching employee names: " . addslashes($conn->error) . "');</script>");
 }
 
-// Handle delete staff
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['deleteStaff'])) {
-    $data = json_decode(file_get_contents('php://input'), true);
-    $staffId = $data['staffId'];
 
-    $stmt = $conn->prepare("DELETE FROM employee_db WHERE id = ?");
-    $stmt->bind_param("i", $staffId);
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['deleteEmployee'])) {
 
-    if ($stmt->execute()) {
-        echo json_encode(['status' => 'success', 'message' => 'Staff member deleted successfully!']);
+    $employeeId = $_POST['employeeId'];
+
+    $delete_stmt = $conn->prepare("DELETE FROM employee_db WHERE employee_id = ?");
+    $delete_stmt->bind_param("i", $employeeId);
+
+    if($delete_stmt->execute()) {
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Employee deleted successfully!'
+        ]);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Error deleting staff member: ' . $stmt->error]);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Error deleting employee: ' . $delete_stmt->error
+        ]);
     }
-
-    $stmt->close();
+    $delete_stmt->close();
     exit;
+
 }
 
 // Handle new staff registration
@@ -259,7 +270,7 @@ $result = $conn->query($sql);
                                 <td><?= $row['household_symptoms_details'] ?: 'N/A' ?></td>
                                 <td><?= $row['environmental_issues'] ?: 'N/A' ?></td>
                                 <td><?= $row['mental_health_support'] ?: 'N/A' ?></td>
-                                <td><?= $row['heat_index_status'] == 'yes' ? '✅' : '❌' ?></td>
+                                <td><?= isset($row['heat_index_status']) ? ($row['heat_index_status'] == 'yes' ? '✅' : '❌') : 'N/A' ?></td>
                                 <td><span class="badge bg-<?= 
                                     $row['current_status'] == 'Active' ? 'success' : 
                                     ($row['current_status'] == 'Pending' ? 'warning' : 'secondary') 
@@ -344,49 +355,17 @@ $result = $conn->query($sql);
 
         </div>
         <!-- Delete Staff Section -->
-        <div class="delete-staff-section" id="deleteStaffSection">
+        <div class="form-group" id="deleteStaffSection" style="display: none;">
             <h3>Delete Staff</h3>
             <form id="deleteStaffForm" method="post">
-                <div class="mb-3">
-                    <label for="searchStaff" class="form-label">Search Staff</label>
-                    <input type="text" class="form-control" id="searchStaff" name="searchStaff" placeholder="Enter staff name">
-                </div>
-                <div class="mb-3">
-                    <label for="staffList" class="form-label">Select Staff</label>
-                    <select class="form-control" id="staffList" name="staffList" required>
-                        <option value="">Select a staff member</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-danger" name="deleteStaff">Delete Staff</button>
+                <label for="employeeName">Employee Name <span style="color: red;">*</span></label>
+                <select class="form-control" id="employeeName" name="employeeName" required>
+                    <option value="">Select your name</option>
+                    <?php echo $employee_options; ?>
+                </select>
+                <button type="button" class="btn btn-danger mt-3" id="deleteEmployeeBtn">Delete Staff</button>
             </form>
         </div>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-            const searchStaffInput = document.getElementById('searchStaff');
-            const staffListDropdown = document.getElementById('staffList');
-
-            searchStaffInput.addEventListener('input', function() {
-                const searchQuery = searchStaffInput.value.trim();
-
-                if (searchQuery.length >= 2) {
-                    fetch(`search_staff.php?query=${searchQuery}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            staffListDropdown.innerHTML = '<option value="">Select a staff member</option>';
-                            data.forEach(staff => {
-                                const option = document.createElement('option');
-                                option.value = staff.id;
-                                option.textContent = `${staff.firstName} ${staff.lastName}`;
-                                staffListDropdown.appendChild(option);
-                            });
-                        })
-                        .catch(error => console.error('Error fetching staff:', error));
-                } else {
-                    staffListDropdown.innerHTML = '<option value="">Select a staff member</option>';
-                }
-            });
-        });
-        </script>
         
 
 
@@ -398,65 +377,61 @@ $result = $conn->query($sql);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-    document.getElementById('deleteStaffForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+    const deleteEmployeeBtn = document.getElementById('deleteEmployeeBtn');
 
-                const staffId = document.getElementById('staffList').value;
+    document.getElementById('deleteEmployeeBtn').addEventListener('click', function() {
+    const selectedEmployee = document.getElementById('employeeName').value;
+    let employeeId = $("#employeeName option:selected").data("value-id");
+        
 
-                if (!staffId) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Validation Error',
-                        text: 'Please select a staff member to delete.',
-                    });
-                    return;
-                }
-
-                Swal.fire({
-                    title: 'Are you sure you want to delete this staff member?',
-                    text: "This action cannot be undone!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Yes, delete it!'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        fetch('admin.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ staffId: staffId })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Deleted!',
-                                    text: data.message,
-                                }).then(() => {
-                                    location.reload();
-                                });
-                            } else {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: data.message,
-                                });
-                            }
-                        })
-                        .catch(error => {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'An error occurred while deleting the staff member.',
-                            });
+                    if (!selectedEmployee) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Validation Error',
+                            text: 'Please select an employee to delete.',
                         });
+                        return;
                     }
+
+                    Swal.fire({
+                        title: 'Are you sure you want to delete this employee?',
+                        text: "This action cannot be undone!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, delete it!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $.ajax({
+                                method: "POST",
+                                url: "admin.php",
+                                data: { employeeName: selectedEmployee, deleteEmployee: true, employeeId : employeeId },
+                                dataType: 'json',
+                                success: function(response) {
+                                    if (response.status === 'success') {
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Success',
+                                            text: response.message,
+                                        });
+                                        document.getElementById('deleteStaffForm').reset(); // Reset the form
+                                    } else {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Error',
+                                            text: response.message,
+                                        });
+                                    }
+                                },
+                            })
+                        }
+                    });
                 });
-            });
+        
+
+
+
         document.addEventListener('DOMContentLoaded', function() {
             // Handle form submission
             document.getElementById('staffRegistrationForm').addEventListener('submit', function(e) {
@@ -572,6 +547,8 @@ $result = $conn->query($sql);
             const healthSubmissionsHeader = document.getElementById('healthSubmissionsHeader');
             const healthSubmissionsTable = document.querySelector('.table-section'); // Corrected this line
             const registrationForm = document.getElementById('registrationForm');
+
+    
 
             deleteStaffLink.addEventListener('click', function(e) {
                 e.preventDefault();
