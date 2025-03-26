@@ -173,6 +173,9 @@ $result = $conn->query($sql);
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="admin.css">
    
 </head>
@@ -225,6 +228,7 @@ $result = $conn->query($sql);
         <!-- Health Submissions Table -->
         <div class="table-section" id="healthSubmissionsTable">
              <!-- Health Submissions Section -->
+        <!-- In your health submissions header section -->
         <div class="header d-flex justify-content-between align-items-center rounded" id="healthSubmissionsHeader">
             <h3 class="mb-0">Health Check Submissions</h3>
             <div class="d-flex align-items-center gap-2">
@@ -234,6 +238,9 @@ $result = $conn->query($sql);
                         <a href="admin.php" class="text-danger"><i class="bi bi-x-lg"></i></a>
                     </div>
                 <?php endif; ?>
+                <button class="btn btn-outline-secondary me-2" id="clearDateFilter" <?= (!$valid_start || !$valid_end) ? 'style="display:none"' : '' ?>>
+                    <i class="bi bi-x-lg me-1"></i>Clear Dates
+                </button>
                 <button class="btn btn-primary me-2" id="dateFilterBtn">
                     <i class="bi bi-calendar-range me-2"></i>Filter by Date
                 </button>
@@ -243,7 +250,7 @@ $result = $conn->query($sql);
                 </a>
             </div>
         </div>
-            <div class="table-responsive">
+                    <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -515,45 +522,75 @@ $result = $conn->query($sql);
             });
             });
         });
-        document.addEventListener('DOMContentLoaded', function() {
-            const backdrop = document.querySelector('.date-modal-backdrop');
-            const modal = document.querySelector('.date-modal');
-            const dateRange = flatpickr("#dateRange", {
-                mode: "range",
-                dateFormat: "Y-m-d",
-                inline: true
-            });
+        // Date Picker Functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const backdrop = document.querySelector('.date-modal-backdrop');
+    const modal = document.querySelector('.date-modal');
+    const clearDateFilterBtn = document.getElementById('clearDateFilter');
+    
+    // Initialize Flatpickr with range mode
+    const dateRange = flatpickr("#dateRange", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        inline: true,
+        allowInput: true,
+        defaultDate: [
+            <?= $valid_start ? "'$start_date'" : 'null' ?>,
+            <?= $valid_end ? "'$end_date'" : 'null' ?>
+        ]
+    });
 
-            // Show modal
-            document.getElementById('dateFilterBtn').addEventListener('click', function(e) {
-                e.preventDefault();
-                backdrop.style.display = 'block';
-                modal.style.display = 'block';
-            });
+    // Show modal
+                document.getElementById('dateFilterBtn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    backdrop.style.display = 'block';
+                    modal.style.display = 'block';
+                });
 
-            // Cancel button
-            document.getElementById('cancelDate').addEventListener('click', function() {
-                backdrop.style.display = 'none';
-                modal.style.display = 'none';
-                window.location.href = 'admin.php';
-            });
-
-            // Apply button
-            document.getElementById('applyDate').addEventListener('click', function() {
-                const selectedDates = dateRange.selectedDates;
-                if (selectedDates.length === 2) {
-                    const startDate = selectedDates[0].toISOString().split('T')[0];
-                    const endDate = selectedDates[1].toISOString().split('T')[0];
-                    window.location.href = `admin.php?start_date=${startDate}&end_date=${endDate}`;
-                }
-            });
-
-            // Close modal when clicking backdrop
-            backdrop.addEventListener('click', function(e) {
-                if (e.target === backdrop) {
+                // Cancel button
+                document.getElementById('cancelDate').addEventListener('click', function() {
                     backdrop.style.display = 'none';
                     modal.style.display = 'none';
+                });
+
+                // Apply button
+                document.getElementById('applyDate').addEventListener('click', function() {
+                    const selectedDates = dateRange.selectedDates;
+                    if (selectedDates.length === 2) {
+                        const startDate = selectedDates[0].toISOString().split('T')[0];
+                        const endDate = selectedDates[1].toISOString().split('T')[0];
+                        window.location.href = `admin.php?start_date=${startDate}&end_date=${endDate}`;
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Selection',
+                            text: 'Please select a start and end date for the range',
+                        });
+                    }
+                });
+
+                // Clear dates button
+                clearDateFilterBtn.addEventListener('click', function() {
+                    window.location.href = 'admin.php';
+                });
+
+                // Close modal when clicking backdrop
+                backdrop.addEventListener('click', function(e) {
+                    if (e.target === backdrop) {
+                        backdrop.style.display = 'none';
+                        modal.style.display = 'none';
+                    }
+                });
+
+                // Toggle clear button visibility based on URL params
+                function updateClearButton() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const hasDates = urlParams.has('start_date') && urlParams.has('end_date');
+                    clearDateFilterBtn.style.display = hasDates ? 'block' : 'none';
                 }
+                
+                // Initial update
+                updateClearButton();
             });
 
             // Toggle between Health Submissions and Registration Form and delete form
@@ -598,7 +635,6 @@ $result = $conn->query($sql);
                 deleteStaffLink.classList.remove('active');
                 deleteStaffSection.style.display = 'none';
             });
-        });
 
         function confirmLogout() {
             Swal.fire({
