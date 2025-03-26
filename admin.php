@@ -129,7 +129,7 @@ if (isset($_GET['export'])) {
     $output = fopen("php://output", "w");
     fputcsv($output, array('ID', 'Employee Name', 'Unit', 'Wellness Status', 'Symptoms', 'Symptoms Management', 
         'Household Symptoms', 'Household Symptoms Details', 'Environmental Check', 'Environmental Issues',
-        'Mental Health Check', 'Mental Health Support', 'Current Status', 'Submission Date'));
+        'Mental Health Check', 'Mental Health Support','Heat Index Status', 'Current Status', 'Submission Date'));
     
     $export_query = "SELECT * FROM health_records" . $where_clause . " ORDER BY submission_date DESC";
     $result = $conn->query($export_query);
